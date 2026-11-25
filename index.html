@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1a2b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="דרכים">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>דרכים – ניווט תלת מימד</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#33ccff;--deep:#0a7fb5;--ink:#11202b;--card:rgba(255,255,255,.92);--solid:#fff;--muted:#6b7c88;--green:#1fbf6a;--line:rgba(17,32,43,.1);--sh:0 10px 30px rgba(0,30,50,.25)}
+body.night{--ink:#eaf4fa;--card:rgba(16,28,40,.9);--solid:#101c28;--muted:#93a7b4;--line:rgba(255,255,255,.1)}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font:16px/1.4 Rubik,system-ui,sans-serif;color:var(--ink);background:#0b1a2b}
+#map{position:fixed;inset:0;z-index:1}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.glass{background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.top{position:fixed;z-index:10;top:calc(10px + env(safe-area-inset-top));inset-inline:10px;max-width:520px;margin:auto}
+.search{display:flex;align-items:center;gap:6px;border-radius:20px;box-shadow:var(--sh);padding:6px 8px 6px 14px}
+.search input{flex:1;border:0;outline:0;font:inherit;font-size:17px;background:none;color:var(--ink);padding:10px 4px}
+.ic{width:44px;height:44px;display:grid;place-items:center;border-radius:14px;flex:none;font-weight:800;font-size:14px}
+.ic.on{background:var(--blue);color:#fff}
+.results{border-radius:18px;box-shadow:var(--sh);margin-top:8px;overflow:hidden;max-height:55vh;overflow-y:auto}
+.results:empty{display:none}
+.res{display:flex;gap:12px;align-items:center;width:100%;text-align:start;padding:12px 16px;border-bottom:1px solid var(--line)}
+.res:hover{background:rgba(51,204,255,.1)}
+.res b{display:block;font-weight:500}.res small{color:var(--muted)}
+.pin{width:36px;height:36px;border-radius:50%;background:rgba(51,204,255,.18);display:grid;place-items:center;flex:none}
+.fabs{position:fixed;z-index:9;inset-inline-start:12px;bottom:calc(var(--sheet,20px) + 14px);display:flex;flex-direction:column;gap:10px;transition:bottom .3s}
+.fab{width:54px;height:54px;border-radius:50%;box-shadow:var(--sh);display:grid;place-items:center;font-weight:800}
+.fab.big{background:linear-gradient(160deg,#5fdcff,#0a9fdc);color:#fff}
+.sheet{position:fixed;z-index:10;inset-inline:0;bottom:0;border-radius:26px 26px 0 0;box-shadow:0 -10px 40px rgba(0,30,50,.3);padding:10px 16px calc(16px + env(safe-area-inset-bottom));max-width:620px;margin:auto;transform:translateY(110%);transition:transform .35s cubic-bezier(.2,.9,.3,1)}
+.sheet.on{transform:none}
+.grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
+.dest{font-size:20px;font-weight:700;line-height:1.2}
+.sub{color:var(--muted);font-size:14px;margin-top:2px}
+.alts{display:flex;gap:8px;overflow-x:auto;margin:12px 0;padding-bottom:2px}
+.alt{flex:none;border:2px solid var(--line);border-radius:16px;padding:8px 14px;text-align:start;min-width:124px}
+.alt.on{border-color:var(--blue);background:rgba(51,204,255,.14)}
+.alt b{font-size:20px;display:block}.alt small{color:var(--muted)}
+.row{display:flex;gap:10px}
+.go{flex:1;background:linear-gradient(160deg,#5fdcff,#0a9fdc);color:#fff;font-weight:800;font-size:18px;border-radius:18px;padding:15px;min-height:56px;box-shadow:0 8px 20px rgba(10,159,220,.4)}
+.go2{background:var(--line);border-radius:18px;padding:15px 16px;font-weight:500;min-height:56px}
+.steps{max-height:26vh;overflow-y:auto;margin-top:12px;border-top:1px solid var(--line)}
+.step{display:flex;gap:12px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.step .d{margin-inline-start:auto;color:var(--muted);white-space:nowrap;font-size:13px}
+.arrow{width:34px;height:34px;flex:none}
+.banner{position:fixed;z-index:11;top:calc(10px + env(safe-area-inset-top));inset-inline:10px;max-width:560px;margin:auto;background:linear-gradient(160deg,#2ad37a,#119c55);color:#fff;border-radius:22px;box-shadow:var(--sh);padding:14px 16px;display:none;align-items:center;gap:14px}
+.banner .arrow{width:58px;height:58px}
+.banner .dist{font-size:34px;font-weight:800;line-height:1}
+.banner .txt{font-size:18px;font-weight:500;margin-top:4px}
+.navbar{position:fixed;z-index:11;inset-inline:0;bottom:0;box-shadow:0 -10px 40px rgba(0,30,50,.3);border-radius:26px 26px 0 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:none;align-items:center;gap:12px;max-width:620px;margin:auto}
+.navbar .eta{font-size:26px;font-weight:800}
+.navbar .rem{color:var(--muted);font-size:14px}
+.stop{background:#ff4d5e;color:#fff;font-weight:700;border-radius:16px;padding:12px 18px;margin-inline-start:auto;min-height:48px}
+.speed{position:fixed;z-index:11;inset-inline-end:14px;bottom:calc(env(safe-area-inset-bottom) + 100px);width:74px;height:74px;border-radius:50%;box-shadow:var(--sh);border:4px solid var(--blue);display:none;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.speed b{font-size:26px}.speed small{font-size:11px;color:var(--muted)}
+body.nav .banner,body.nav .navbar,body.nav .speed{display:flex}
+body.nav .top,body.nav .sheet{display:none}
+body.nav .fabs{bottom:calc(env(safe-area-inset-bottom) + 100px)}
+.report{position:fixed;z-index:20;inset:0;background:rgba(0,20,30,.45);display:none;align-items:flex-end;justify-content:center}
+.report.on{display:flex}
+.rbox{width:100%;max-width:620px;border-radius:26px 26px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+.rgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.rgrid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:16px;font-size:14px}
+.rgrid i{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:28px;color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.2)}
+.toast{position:fixed;z-index:30;left:50%;top:90px;transform:translateX(-50%);background:var(--ink);color:var(--solid);padding:10px 18px;border-radius:30px;font-size:15px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:.95}
+.me{width:24px;height:24px;border-radius:50%;background:var(--blue);border:4px solid #fff;box-shadow:0 0 0 10px rgba(51,204,255,.25),0 3px 8px rgba(0,0,0,.35)}
+.car{width:64px;height:64px;filter:drop-shadow(0 10px 6px rgba(0,0,0,.35))}
+.hz{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:22px;border:3px solid #fff;box-shadow:0 6px 12px rgba(0,0,0,.35)}
+.dpin{filter:drop-shadow(0 8px 6px rgba(0,0,0,.35))}
+.maplibregl-popup-content{font-family:Rubik,sans-serif;text-align:center;border-radius:16px;padding:12px 14px;background:var(--solid);color:var(--ink)}
+.pbtn{display:block;width:100%;margin-top:6px;padding:9px 12px;border-radius:12px;background:var(--blue);color:#fff;font-weight:700}
+.pbtn.g{background:var(--line);color:var(--ink)}
+.maplibregl-ctrl-attrib{font-size:10px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="top">
+  <div class="search glass">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#33ccff" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    <input id="q" placeholder="לאן נוסעים?" autocomplete="off" enterkeyhint="search">
+    <button class="ic" id="clr" title="נקה" hidden>✕</button>
+    <button class="ic on" id="b3d" title="תלת מימד">3D</button>
+    <button class="ic" id="terr" title="הרים">⛰</button>
+    <button class="ic" id="night" title="מצב לילה"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg></button>
+  </div>
+  <div class="results glass" id="results"></div>
+</div>
+
+<div class="fabs">
+  <button class="fab glass" id="rep" title="דיווח"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ff8a00" stroke-width="2.4" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4m0 3v.5" stroke-linecap="round"/></svg></button>
+  <button class="fab big" id="loc" title="המיקום שלי"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 3 3 7.5z"/></svg></button>
+</div>
+
+<div class="sheet glass" id="sheet">
+  <div class="grab"></div>
+  <div class="dest" id="dName"></div>
+  <div class="sub" id="dSub"></div>
+  <div class="alts" id="alts"></div>
+  <div class="row">
+    <button class="go" id="go">יוצאים לדרך</button>
+    <button class="go2" id="sim" title="הדמיית נסיעה">הדמיה</button>
+    <button class="go2" id="close">✕</button>
+  </div>
+  <div class="steps" id="steps"></div>
+</div>
+
+<div class="banner"><svg class="arrow" id="bArrow" viewBox="0 0 40 40"></svg><div><div class="dist" id="bDist"></div><div class="txt" id="bTxt"></div></div></div>
+<div class="navbar glass">
+  <div><div class="eta" id="nEta"></div><div class="rem" id="nRem"></div></div>
+  <button class="fab" id="mute" style="box-shadow:none;background:var(--line);width:48px;height:48px">🔊</button>
+  <button class="stop" id="stop">סיום</button>
+</div>
+<div class="speed glass"><b id="spd">0</b><small>קמ"ש</small></div>
+
+<div class="report" id="report"><div class="rbox glass">
+  <div class="dest">מה ראית בדרך?</div>
+  <div class="rgrid" id="rgrid"></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+{
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const toast=t=>{const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2600)};
+
+// ---------- 3D map ----------
+const STYLES={day:'https://tiles.openfreemap.org/styles/liberty',night:'https://tiles.openfreemap.org/styles/dark'};
+let night=store.get('night',false),is3d=true,terrainOn=store.get('terrain',false);
+try{maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',true)}catch{}
+const map=new maplibregl.Map({container:'map',style:night?STYLES.night:STYLES.day,center:[34.78,32.08],zoom:13,pitch:60,bearing:-15,maxPitch:80,attributionControl:{compact:true}});
+document.body.classList.toggle('night',night);
+
+let routeGeo={type:'FeatureCollection',features:[]},altGeo={type:'FeatureCollection',features:[]};
+map.on('style.load',()=>{
+  const st=map.getStyle(),src=Object.keys(st.sources).find(k=>st.sources[k].type==='vector');
+  const label=st.layers.find(l=>l.type==='symbol'&&l.layout?.['text-field'])?.id;
+  // 3D buildings (replace flat ones)
+  st.layers.filter(l=>l['source-layer']==='building').forEach(l=>{try{map.removeLayer(l.id)}catch{}});
+  map.addLayer({id:'bld3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{
+    'fill-extrusion-color':night?['interpolate',['linear'],['coalesce',['get','render_height'],8],0,'#1d3550',60,'#2c5d86',200,'#3fa3d6']:['interpolate',['linear'],['coalesce',['get','render_height'],8],0,'#e6e1d8',40,'#d4dde6',150,'#9fc6e0'],
+    'fill-extrusion-height':['interpolate',['linear'],['zoom'],13,0,14.5,['coalesce',['get','render_height'],8]],
+    'fill-extrusion-base':['coalesce',['get','render_min_height'],0],
+    'fill-extrusion-opacity':.92,'fill-extrusion-vertical-gradient':true}},label);
+  // sky & light
+  try{map.setSky({'sky-color':night?'#050b18':'#7fd4ff','horizon-color':night?'#1b3352':'#e9f7ff','fog-color':night?'#0b1a2b':'#ffffff','sky-horizon-blend':.6,'horizon-fog-blend':.6,'fog-ground-blend':.4})}catch{}
+  try{map.setLight({anchor:'map',position:[1.4,210,35],intensity:.45,color:'#fff'})}catch{}
+  // terrain
+  map.addSource('dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:14});
+  map.addLayer({id:'hill',type:'hillshade',source:'dem',layout:{visibility:terrainOn?'visible':'none'},paint:{'hillshade-exaggeration':.35,'hillshade-shadow-color':night?'#000':'#5a6b55'}},'bld3d');
+  applyTerrain();
+  // routes
+  map.addSource('alt',{type:'geojson',data:altGeo});map.addSource('route',{type:'geojson',data:routeGeo});
+  map.addLayer({id:'alt',type:'line',source:'alt',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':night?'#5d7387':'#9fb4c2','line-width':['interpolate',['linear'],['zoom'],10,5,17,14],'line-opacity':.9}});
+  map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],10,14,17,38],'line-blur':12,'line-opacity':.55}});
+  map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#075f8a','line-width':['interpolate',['linear'],['zoom'],10,8,17,20]}});
+  map.addLayer({id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#33ccff','line-width':['interpolate',['linear'],['zoom'],10,5,17,14]}});
+  map.addLayer({id:'route-dash',type:'line',source:'route',layout:{'line-cap':'round'},paint:{'line-color':'#fff','line-width':['interpolate',['linear'],['zoom'],10,1,17,3],'line-dasharray':[0,3],'line-opacity':.8}});
+  map.on('click','alt',e=>{const i=e.features[0]?.properties?.i;if(i!=null){sel=+i;drawRoutes()}});
+});
+function applyTerrain(){
+  if(!map.getSource('dem'))return;
+  map.setLayoutProperty('hill','visibility',terrainOn?'visible':'none');
+  try{map.setTerrain(terrainOn?{source:'dem',exaggeration:1.4}:null)}catch{}
+  $('terr').classList.toggle('on',terrainOn);
+}
+// animated dashes on route
+{let step=0;const seq=[[0,4,3],[0.5,4,2.5],[1,4,2],[1.5,4,1.5],[2,4,1],[2.5,4,0.5],[3,4,0],[0,0.5,3,3.5],[0,1,3,3],[0,1.5,3,2.5],[0,2,3,2],[0,2.5,3,1.5],[0,3,3,1],[0,3.5,3,0.5]];
+setInterval(()=>{if(map.getLayer('route-dash')&&routeGeo.features.length){step=(step+1)%seq.length;map.setPaintProperty('route-dash','line-dasharray',seq[step])}},70)}
+
+$('night').onclick=()=>{night=!night;store.set('night',night);document.body.classList.toggle('night',night);map.setStyle(night?STYLES.night:STYLES.day)};
+$('b3d').onclick=()=>{is3d=!is3d;$('b3d').classList.toggle('on',is3d);map.easeTo({pitch:is3d?60:0,bearing:is3d?map.getBearing():0,duration:900})};
+$('terr').onclick=()=>{terrainOn=!terrainOn;store.set('terrain',terrainOn);applyTerrain();toast(terrainOn?'תבליט הרים פעיל':'תבליט כבוי')};
+
+// ---------- geo helpers ([lng,lat]) ----------
+const hav=(a,b)=>{const R=6371e3,r=Math.PI/180,dLa=(b[1]-a[1])*r,dLo=(b[0]-a[0])*r,x=Math.sin(dLa/2)**2+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x))};
+const bearing=(a,b)=>{const r=Math.PI/180,y=Math.sin((b[0]-a[0])*r)*Math.cos(b[1]*r),x=Math.cos(a[1]*r)*Math.sin(b[1]*r)-Math.sin(a[1]*r)*Math.cos(b[1]*r)*Math.cos((b[0]-a[0])*r);return(Math.atan2(y,x)/r+360)%360};
+
+// ---------- my location / car ----------
+let me=null,meMarker=null,heading=0,navOn=false;
+const meEl=()=>{const d=document.createElement('div');d.className='me';return d};
+const carEl=()=>{const d=document.createElement('div');d.innerHTML=`<svg class="car" viewBox="0 0 64 64"><defs><linearGradient id="cb" x1="0" x2="1"><stop offset="0" stop-color="#0a8fd0"/><stop offset=".5" stop-color="#5fe0ff"/><stop offset="1" stop-color="#0a8fd0"/></linearGradient></defs><ellipse cx="32" cy="36" rx="16" ry="24" fill="rgba(0,0,0,.25)"/><rect x="18" y="8" width="28" height="48" rx="12" fill="url(#cb)" stroke="#06587f" stroke-width="2"/><path d="M22 22q10-6 20 0l-2 8H24z" fill="#0b2536"/><path d="M24 44h16l2 6q-10 4-20 0z" fill="#0b2536"/><rect x="22" y="31" width="20" height="12" rx="3" fill="#7ee6ff" opacity=".6"/><circle cx="22" cy="11" r="2.4" fill="#fff8c0"/><circle cx="42" cy="11" r="2.4" fill="#fff8c0"/></svg>`;return d};
+function setMe(ll,nav){
+  me=ll;
+  if(meMarker&&meMarker._nav!==nav){meMarker.remove();meMarker=null}
+  if(!meMarker){meMarker=new maplibregl.Marker({element:nav?carEl():meEl(),rotationAlignment:nav?'map':'auto',pitchAlignment:nav?'map':'auto'}).setLngLat(ll).addTo(map);meMarker._nav=nav}
+  meMarker.setLngLat(ll);if(nav)meMarker.setRotation(heading);
+}
+let watchId=null,follow=true;
+function locate(fly=true){
+  if(!navigator.geolocation){toast('המכשיר לא תומך במיקום');return}
+  navigator.geolocation.getCurrentPosition(p=>{const ll=[p.coords.longitude,p.coords.latitude];setMe(ll,navOn);if(fly)map.flyTo({center:ll,zoom:16.5,pitch:is3d?60:0,duration:2200})},()=>toast('אין גישה למיקום – לחץ על המפה כדי לבחור נקודת מוצא'),{enableHighAccuracy:true,timeout:10000});
+}
+$('loc').onclick=()=>{if(navOn&&me){follow=true;cam(me,true)}else locate()};
+map.on('load',()=>locate(true));
+map.on('dragstart',()=>{if(navOn)follow=false});
+
+// ---------- search ----------
+let sTimer=null,ctrl=null;const q=$('q'),results=$('results');
+q.addEventListener('input',()=>{$('clr').hidden=!q.value;clearTimeout(sTimer);if(q.value.trim().length<2){results.innerHTML='';return}sTimer=setTimeout(search,300)});
+q.addEventListener('focus',()=>{if(!q.value)showRecent()});
+q.addEventListener('keydown',e=>{if(e.key==='Enter'){const f=results.querySelector('button.res');f&&f.click()}});
+$('clr').onclick=()=>{q.value='';results.innerHTML='';$('clr').hidden=true;q.focus()};
+const pinSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="#0a9fdc"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
+function renderResults(list,title){
+  results.innerHTML=(title?`<div class="res" style="color:var(--muted);font-size:13px">${title}</div>`:'')+list.map((r,i)=>`<button class="res" data-i="${i}"><span class="pin">${pinSvg}</span><span><b>${esc(r.name)}</b><small>${esc(r.addr)}</small></span></button>`).join('');
+  results.querySelectorAll('button.res').forEach(b=>b.onclick=()=>{const r=list[b.dataset.i];results.innerHTML='';q.value=r.name;q.blur();pickDest([r.lon,r.lat],r.name,r.addr)});
+}
+function showRecent(){const rec=store.get('recent',[]);if(rec.length)renderResults(rec,'חיפושים אחרונים')}
+async function search(){
+  ctrl?.abort();ctrl=new AbortController();const c=me||map.getCenter().toArray();
+  try{
+    const j=await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q.value)}&limit=7&lat=${c[1]}&lon=${c[0]}`,{signal:ctrl.signal})).json();
+    const list=j.features.map(f=>{const p=f.properties;return{name:p.name||[p.street,p.housenumber].filter(Boolean).join(' ')||p.city||'מקום',addr:[p.street&&(p.street+(p.housenumber?' '+p.housenumber:'')),p.city||p.town||p.village,p.country].filter(Boolean).join(', '),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0]}});
+    list.length?renderResults(list):results.innerHTML='<div class="res">לא נמצאו תוצאות</div>';
+  }catch(e){if(e.name!=='AbortError')results.innerHTML='<div class="res">שגיאת רשת – בדוק חיבור אינטרנט</div>'}
+}
+async function reverse(ll){try{const j=await (await fetch(`https://photon.komoot.io/reverse?lat=${ll[1]}&lon=${ll[0]}`)).json();const p=j.features[0]?.properties;return p?(p.name||[p.street,p.housenumber].filter(Boolean).join(' ')||p.city||'נקודה במפה'):'נקודה במפה'}catch{return 'נקודה במפה'}}
+
+// ---------- tap on map ----------
+let startOverride=null,startMarker=null,popup=null;
+map.on('click',e=>{
+  if(navOn||map.queryRenderedFeatures(e.point,{layers:['alt']}).length)return;
+  results.innerHTML='';const ll=e.lngLat.toArray();popup?.remove();
+  const box=document.createElement('div');box.innerHTML='<b>נקודה במפה</b><button class="pbtn">נווט לכאן</button><button class="pbtn g">התחל מכאן</button>';
+  const[bt,bf]=box.querySelectorAll('button');
+  bt.onclick=()=>{popup.remove();reverse(ll).then(n=>pickDest(ll,n,'נקודה שנבחרה במפה'))};
+  bf.onclick=()=>{popup.remove();startOverride=ll;startMarker?.remove();const d=document.createElement('div');d.style.cssText='width:20px;height:20px;border-radius:50%;background:#1fbf6a;border:4px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.4)';startMarker=new maplibregl.Marker({element:d}).setLngLat(ll).addTo(map);toast('נקודת המוצא נקבעה');if(dest)route()};
+  popup=new maplibregl.Popup({closeButton:false,offset:10}).setLngLat(ll).setDOMContent(box).addTo(map);
+});
+
+// ---------- routing ----------
+let dest=null,destMarker=null,routes=[],sel=0;
+function pickDest(ll,name,addr){
+  dest={ll,name,addr};
+  const rec=store.get('recent',[]).filter(r=>r.name!==name);rec.unshift({name,addr,lat:ll[1],lon:ll[0]});store.set('recent',rec.slice(0,6));
+  destMarker?.remove();const d=document.createElement('div');d.className='dpin';d.innerHTML='<svg width="44" height="54" viewBox="0 0 40 48"><path d="M20 2C10 2 3 9 3 18c0 12 17 28 17 28s17-16 17-28C37 9 30 2 20 2z" fill="#ff4d5e" stroke="#fff" stroke-width="3"/><circle cx="20" cy="18" r="6" fill="#fff"/></svg>';
+  destMarker=new maplibregl.Marker({element:d,anchor:'bottom'}).setLngLat(ll).addTo(map);
+  $('dName').textContent=name;$('dSub').textContent='מחשב מסלול…';$('alts').innerHTML='';$('steps').innerHTML='';
+  openSheet(true);return route();
+}
+async function route(){
+  const from=startOverride||me;
+  if(!from){$('dSub').textContent='לא ידוע מיקום התחלה – אשר גישה למיקום או לחץ על המפה ← "התחל מכאן"';map.flyTo({center:dest.ll,zoom:15});return}
+  try{
+    const j=await (await fetch(`https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${dest.ll[0]},${dest.ll[1]}?overview=full&geometries=geojson&steps=true&alternatives=true`)).json();
+    if(j.code!=='Ok'||!j.routes.length)throw 0;routes=j.routes;sel=0;drawRoutes(true);
+  }catch{$('dSub').textContent='לא הצלחתי לחשב מסלול – נסה שוב'}
+}
+function setRouteData(){
+  routeGeo={type:'FeatureCollection',features:routes[sel]?[{type:'Feature',geometry:routes[sel].geometry,properties:{}}]:[]};
+  altGeo={type:'FeatureCollection',features:navOn?[]:routes.map((r,i)=>({type:'Feature',geometry:r.geometry,properties:{i}})).filter(f=>f.properties.i!==sel)};
+  map.getSource('route')?.setData(routeGeo);map.getSource('alt')?.setData(altGeo);
+}
+function drawRoutes(fit){
+  setRouteData();const r=routes[sel];
+  if(fit){const b=new maplibregl.LngLatBounds();r.geometry.coordinates.forEach(c=>b.extend(c));map.fitBounds(b,{padding:{top:110,bottom:window.innerHeight*.46,left:40,right:40},pitch:is3d?45:0,duration:1600})}
+  $('dSub').textContent=dest.addr||'';
+  $('alts').innerHTML=routes.map((r,i)=>`<button class="alt ${i===sel?'on':''}" data-i="${i}"><b>${fmtDur(r.duration)}</b><small>${fmtKm(r.distance)} · הגעה ${arrival(r.duration)}</small></button>`).join('');
+  $('alts').querySelectorAll('.alt').forEach(b=>b.onclick=()=>{sel=+b.dataset.i;drawRoutes()});
+  $('steps').innerHTML=allSteps(r).map(s=>`<div class="step">${arrowSvg(s)}<span>${esc(instr(s))}</span><span class="d">${s.distance>0?fmtDist(s.distance):''}</span></div>`).join('');
+  sizeSheet();
+}
+const allSteps=r=>r.legs.flatMap(l=>l.steps);
+
+// ---------- Hebrew instructions ----------
+const fmtDur=s=>{const m=Math.round(s/60);return m<60?`${m} דק'`:`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')} שע'`};
+const fmtKm=m=>m<1000?`${Math.round(m)} מ'`:`${(m/1000).toFixed(m<10000?1:0)} ק"מ`;
+const fmtDist=m=>m<1000?`${Math.max(10,Math.round(m/10)*10)} מ'`:`${(m/1000).toFixed(1)} ק"מ`;
+const arrival=s=>new Date(Date.now()+s*1000).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+const MOD={'left':'שמאלה','right':'ימינה','slight left':'קלות שמאלה','slight right':'קלות ימינה','sharp left':'חדה שמאלה','sharp right':'חדה ימינה','straight':'ישר','uturn':'פרסה'};
+const ORD=['','ראשונה','שנייה','שלישית','רביעית','חמישית','שישית'];
+function instr(s){
+  const m=s.maneuver,mod=MOD[m.modifier]||'',road=s.name||s.ref||'',to=road?` ל${road}`:'',on=road?` ב${road}`:'';
+  switch(m.type){
+    case 'depart':return `צא לדרך${on}`;
+    case 'arrive':return 'הגעת ליעד';
+    case 'roundabout':case 'rotary':case 'roundabout turn':return `בכיכר צא ביציאה ה${ORD[m.exit]||m.exit||''}${to}`;
+    case 'exit roundabout':case 'exit rotary':return `צא מהכיכר${to}`;
+    case 'merge':return `השתלב ${mod}${to}`;
+    case 'on ramp':return `עלה על המחלף${to}`;
+    case 'off ramp':return `צא ${mod}${to}`;
+    case 'fork':return `בהתפצלות שמור ${mod}${to}`;
+    case 'end of road':return `בסוף הדרך פנה ${mod}${to}`;
+    case 'continue':case 'new name':return m.modifier==='straight'||!mod?`המשך ישר${on}`:`המשך ${mod}${to}`;
+    default:return m.modifier==='straight'?`המשך ישר${on}`:m.modifier==='uturn'?`בצע פרסה${to}`:`פנה ${mod}${to}`;
+  }
+}
+const ANG={'straight':0,'slight right':40,'right':90,'sharp right':135,'slight left':-40,'left':-90,'sharp left':-135};
+function arrowSvg(s,color='#0a9fdc'){
+  const m=s.maneuver,t=m.type;
+  if(t==='arrive')return `<svg class="arrow" viewBox="0 0 40 40"><path d="M20 4c-7 0-12 5-12 12 0 9 12 20 12 20s12-11 12-20c0-7-5-12-12-12z" fill="${color}"/><circle cx="20" cy="16" r="4.5" fill="${color==='#fff'?'#119c55':'#fff'}"/></svg>`;
+  if(t.includes('roundabout')||t.includes('rotary'))return `<svg class="arrow" viewBox="0 0 40 40" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round"><circle cx="20" cy="18" r="8"/><path d="M20 26v10M26 12l6-6"/><path d="m27 5 5 1 1 5"/></svg>`;
+  if(m.modifier==='uturn')return `<svg class="arrow" viewBox="0 0 40 40" fill="none" stroke="${color}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 36V16a7 7 0 0 0-14 0v6"/><path d="m6 17 6 6 6-6"/></svg>`;
+  return `<svg class="arrow" viewBox="0 0 40 40"><g transform="rotate(${ANG[m.modifier]??0} 20 22)" fill="none" stroke="${color}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 37V7"/><path d="m11 15 9-9 9 9"/></g></svg>`;
+}
+
+// ---------- sheet ----------
+function openSheet(on){$('sheet').classList.toggle('on',on);sizeSheet(on)}
+function sizeSheet(on=$('sheet').classList.contains('on')){requestAnimationFrame(()=>document.documentElement.style.setProperty('--sheet',on?$('sheet').offsetHeight+'px':'20px'))}
+$('close').onclick=()=>{openSheet(false);routes=[];setRouteData();destMarker?.remove();dest=null;q.value='';$('clr').hidden=true};
+
+// ---------- navigation ----------
+let steps=[],si=0,coords=[],offCount=0,simT=null,lastPos=null,voice=store.get('voice',true),lock=null;
+$('mute').textContent=voice?'🔊':'🔇';
+$('mute').onclick=()=>{voice=!voice;store.set('voice',voice);$('mute').textContent=voice?'🔊':'🔇'};
+function cam(ll,force){map.easeTo({center:ll,bearing:heading,pitch:is3d?68:0,zoom:17.3,padding:{top:window.innerHeight*.42,bottom:0,left:0,right:0},duration:force?800:950,easing:t=>t})}
+function loadRoute(){const r=routes[sel];steps=allSteps(r);si=1;coords=r.geometry.coordinates;offCount=0}
+function startNav(sim){
+  if(!routes[sel])return;navOn=true;follow=true;document.body.classList.add('nav');loadRoute();setRouteData();
+  heading=bearing(coords[0],coords[Math.min(3,coords.length-1)]);
+  if(sim||!navigator.geolocation){if(!sim)toast('אין GPS – מפעיל הדמיה');simulate()}
+  else watchId=navigator.geolocation.watchPosition(p=>onPos([p.coords.longitude,p.coords.latitude],p.coords.speed,p.coords.heading),()=>toast('אות GPS חלש'),{enableHighAccuracy:true,maximumAge:1000});
+  onPos(coords[0],0);
+  try{navigator.wakeLock?.request('screen').then(w=>lock=w).catch(()=>{})}catch{}
+  speakNav(`יוצאים לדרך. ${instr(steps[0])}`);
+}
+function stopNav(){
+  navOn=false;document.body.classList.remove('nav');clearInterval(simT);simT=null;
+  if(watchId!=null)navigator.geolocation.clearWatch(watchId);watchId=null;lock?.release?.();lock=null;
+  if(me)setMe(me,false);map.easeTo({padding:{top:0,bottom:0,left:0,right:0},pitch:is3d?60:0,duration:600});
+  if(dest&&routes.length)drawRoutes(true);
+}
+function onPos(ll,speed,hd){
+  if(lastPos&&hav(lastPos,ll)>2)heading=(hd!=null&&!isNaN(hd)&&speed>2)?hd:bearing(lastPos,ll);
+  lastPos=ll;setMe(ll,true);$('spd').textContent=speed>0?Math.round(speed*3.6):0;
+  if(follow)cam(ll);
+  while(si<steps.length-1){const m=steps[si].maneuver.location;if(hav(ll,m)<25)si++;else break}
+  const s=steps[si],dNext=hav(ll,s.maneuver.location);
+  $('bArrow').outerHTML=arrowSvg(s,'#fff').replace('class="arrow"','class="arrow" id="bArrow"');
+  $('bDist').textContent=fmtDist(dNext);$('bTxt').textContent=instr(s);
+  let remD=dNext,remT=0;for(let i=si;i<steps.length;i++){if(i>si)remD+=steps[i].distance;remT+=steps[i].duration}
+  const prev=steps[si-1];if(prev)remT+=prev.duration*Math.min(1,dNext/Math.max(prev.distance,1));
+  $('nEta').textContent=arrival(remT);$('nRem').textContent=`${fmtDur(remT)} · ${fmtKm(remD)}`;
+  if(dNext<300&&speakNav.last!==si){speakNav.last=si;speakNav(`בעוד ${fmtDist(dNext).replace("מ'",'מטר').replace('ק"מ','קילומטר')}, ${instr(s)}`)}
+  if(s.maneuver.type==='arrive'&&dNext<30){speakNav('הגעת ליעד');toast('הגעת ליעד! 🎉');return stopNav()}
+  if(!simT){let min=1e9;for(let i=0;i<coords.length;i+=2)min=Math.min(min,hav(ll,coords[i]));offCount=min>70?offCount+1:0;
+    if(offCount>=3){offCount=0;toast('מחשב מסלול מחדש…');startOverride=null;me=ll;route().then(()=>{if(navOn&&routes[sel]){loadRoute();setRouteData()}})}}
+}
+function speakNav(t){try{if(!voice)return;const u=new SpeechSynthesisUtterance(t);u.lang='he-IL';speechSynthesis.cancel();speechSynthesis.speak(u)}catch{}}
+function simulate(){
+  let i=0,pos=coords[0];const v=60/3.6,dt=1,k=4;
+  simT=setInterval(()=>{
+    let move=v*dt*k;
+    while(move>0&&i<coords.length-1){const d=hav(pos,coords[i+1]);if(d<=move){move-=d;pos=coords[++i]}else{const f=move/d;pos=[pos[0]+(coords[i+1][0]-pos[0])*f,pos[1]+(coords[i+1][1]-pos[1])*f];move=0}}
+    onPos(i>=coords.length-1?coords[coords.length-1]:pos,v);
+  },dt*1000);
+}
+$('go').onclick=()=>startNav(false);$('sim').onclick=()=>startNav(true);$('stop').onclick=stopNav;
+
+// ---------- reports ----------
+const TYPES=[{k:'police',n:'משטרה',c:'#2f6fed',e:'👮'},{k:'crash',n:'תאונה',c:'#ff4d5e',e:'💥'},{k:'jam',n:'פקק',c:'#ff8a00',e:'🚗'},{k:'hazard',n:'מפגע',c:'#f5b800',e:'⚠️'},{k:'camera',n:'מצלמה',c:'#7b5cff',e:'📷'},{k:'closed',n:'כביש חסום',c:'#333',e:'⛔'},{k:'gas',n:'דלק זול',c:'#1fbf6a',e:'⛽'},{k:'other',n:'אחר',c:'#6b7c88',e:'📍'}];
+$('rgrid').innerHTML=TYPES.map(t=>`<button data-k="${t.k}"><i style="background:${t.c}">${t.e}</i>${t.n}</button>`).join('');
+let reports=store.get('reports',[]),rMarkers=[];
+function drawReports(){
+  rMarkers.forEach(m=>m.remove());rMarkers=[];const now=Date.now();reports=reports.filter(r=>now-r.t<6*3600e3);store.set('reports',reports);
+  reports.forEach((r,i)=>{const t=TYPES.find(x=>x.k===r.k)||TYPES[7],el=document.createElement('div');el.className='hz';el.style.background=t.c;el.textContent=t.e;
+    const box=document.createElement('div');box.innerHTML=`<b>${t.n}</b><br><small>דווח לפני ${Math.max(1,Math.round((now-r.t)/60000))} דק'</small><button class="pbtn g">הסר</button>`;
+    box.querySelector('button').onclick=()=>{reports.splice(i,1);drawReports()};
+    rMarkers.push(new maplibregl.Marker({element:el}).setLngLat([r.lng,r.lat]).setPopup(new maplibregl.Popup({offset:22,closeButton:false}).setDOMContent(box)).addTo(map))});
+}
+drawReports();
+$('rep').onclick=()=>$('report').classList.add('on');
+$('report').onclick=e=>{if(e.target.id==='report')$('report').classList.remove('on')};
+$('rgrid').onclick=e=>{const b=e.target.closest('button');if(!b)return;const p=navOn&&lastPos?lastPos:(me||map.getCenter().toArray());reports.push({k:b.dataset.k,lng:p[0],lat:p[1],t:Date.now()});drawReports();$('report').classList.remove('on');toast('תודה על הדיווח!')};
+addEventListener('resize',()=>sizeSheet());
+}
+</script>
+</body>
+</html>
